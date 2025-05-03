@@ -6,6 +6,7 @@ let endNode = null;
 let movingStart = false;
 let movingEnd = false;
 
+
 const gridElement = document.getElementById('grid');
 const grid = [];
 
@@ -30,6 +31,118 @@ function createGrid() {
     grid.push(row);
   }
 }
+// Algorithm information including time complexity
+const algorithmInfo = {
+  dijkstra: {
+    name: "Dijkstra's Algorithm",
+    time: "O((V+E) log V)",
+    space: "O(V)",
+    description: "Finds shortest path with weighted edges (uniform in our case)"
+  },
+  astar: {
+    name: "A* Search",
+    time: "O(E) - O(b^d) with good heuristic",
+    space: "O(V)",
+    description: "Uses heuristic to find path faster, optimal with admissible heuristic"
+  },
+  greedy: {
+    name: "Greedy Best-First",
+    time: "O(b^d) - not optimal",
+    space: "O(b^d)",
+    description: "Prioritizes nodes closer to goal, may not find shortest path"
+  },
+  bfs: {
+    name: "Breadth-First Search",
+    time: "O(V+E)",
+    space: "O(V)",
+    description: "Explores all neighbors first, finds shortest path in unweighted graph"
+  },
+  dfs: {
+    name: "Depth-First Search",
+    time: "O(V+E)",
+    space: "O(V)",
+    description: "Explores as far as possible first, not optimal for shortest path"
+  }
+};
+
+// Modified algorithm functions to return performance data
+async function runAlgorithm(algorithm) {
+  resetVisualization();
+  const startTime = performance.now();
+  
+  switch(algorithm) {
+    case "dijkstra": await dijkstra(); break;
+    case "astar": await astar(); break;
+    case "greedy": await greedyBestFirst(); break;
+    case "bfs": await bfs(); break;
+    case "dfs": await dfs(); break;
+  }
+  
+  const endTime = performance.now();
+  return {
+    time: (endTime - startTime).toFixed(2),
+    visited: countVisitedNodes(),
+    pathLength: getPathLength()
+  };
+}
+
+function countVisitedNodes() {
+  let count = 0;
+  for (let row of grid) {
+    for (let node of row) {
+      if (node.visited) count++;
+    }
+  }
+  return count;
+}
+
+function getPathLength() {
+  let curr = endNode;
+  let length = 0;
+  while (curr && curr.previous) {
+    length++;
+    curr = curr.previous;
+  }
+  return length;
+}
+
+// Main comparison function
+async function compareAlgorithms() {
+  const algorithms = ["dijkstra", "astar", "greedy", "bfs", "dfs"];
+  const resultsContainer = document.getElementById("comparison-results");
+  resultsContainer.innerHTML = "";
+  
+  // Run all algorithms in parallel
+  const promises = algorithms.map(alg => runAlgorithm(alg));
+  const results = await Promise.all(promises);
+  
+  // Display results
+  results.forEach((result, index) => {
+    const alg = algorithms[index];
+    const info = algorithmInfo[alg];
+    
+    const card = document.createElement("div");
+    card.className = "algorithm-card";
+    card.innerHTML = `
+      <div class="algorithm-title">${info.name}</div>
+      <div class="complexity-info">
+        <div>Time: ${info.time}</div>
+        <div>Space: ${info.space}</div>
+        <div>${info.description}</div>
+      </div>
+      <div class="time-info">
+        Execution: ${result.time} ms
+      </div>
+      <div>Visited nodes: ${result.visited}</div>
+      <div>Path length: ${result.pathLength}</div>
+    `;
+    
+    resultsContainer.appendChild(card);
+  });
+}
+
+// Add event listener for comparison button
+document.getElementById("compare-btn").addEventListener("click", compareAlgorithms);
 
 function handleMouseDown(cell) {
   const r = +cell.dataset.row;
@@ -124,6 +237,7 @@ async function dijkstra() {
     alert("Please set both start and end nodes.");
     return;
   }
+  resetVisualization()
 
   const unvisited = [];
   for (let row of grid) {
@@ -167,22 +281,7 @@ async function dijkstra() {
   animatePath();
 }
 
-async function animatePath() {
-  let curr = endNode;
-  const path = [];
-  while (curr) {
-    path.push(curr);
-    curr = curr.previous;
-  }
-  path.reverse();
-  for (let node of path) {
-    if (node !== startNode && node !== endNode) {
-      node.element.classList.remove("bg-blue-300");
-      node.element.classList.add("bg-yellow-400");
-      await new Promise(r => setTimeout(r, 30));
-    }
-  }
-}
+
 
 function resetGrid() {
   gridElement.innerHTML = '';
@@ -222,6 +321,7 @@ async function astar() {
     alert("Please set both start and end nodes.");
     return;
   }
+  resetVisualization()
 
   for (let row of grid) {
     for (let node of row) {
@@ -285,33 +385,14 @@ function clearWalls() {
 
 document.getElementById('clear-walls-btn').addEventListener('click', clearWalls);
 
-async function animatePath() {
-  let curr = endNode;
-  const path = [];
-  while (curr) {
-    path.push(curr);
-    curr = curr.previous;
-  }
-  path.reverse();
 
-  let length = 0;
-  for (let node of path) {
-    if (node !== startNode && node !== endNode) {
-      node.element.classList.remove("bg-blue-300");
-      node.element.classList.add("bg-yellow-400");
-      await new Promise(r => setTimeout(r, 30));
-      length++;
-    }
-  }
-
-  document.getElementById('path-length').textContent = `Path length: ${length}`;
-}
 
 async function greedyBestFirst() {
   if (!startNode || !endNode) {
     alert("Please set both start and end nodes.");
     return;
   }
+  resetVisualization()
 
   for (let row of grid) {
     for (let node of row) {
@@ -347,7 +428,9 @@ async function greedyBestFirst() {
 
 //document.getElementById('greedy-btn').addEventListener('click', greedyBestFirst);
 document.getElementById("start-btn").addEventListener("click", () => {
+  resetVisualization(); 
   const algorithm = document.getElementById("algorithm").value;
+
 
   switch (algorithm) {
     case "dijkstra":
@@ -376,7 +459,7 @@ async function bfs() {
     alert("Please set both start and end nodes.");
     return;
   }
-
+  resetVisualization()
   for (let row of grid) {
     for (let node of row) {
       node.visited = false;
@@ -405,7 +488,7 @@ async function bfs() {
       }
     }
   }
-
+  
   animatePath();
 }
 //dfs
@@ -414,6 +497,7 @@ async function dfs() {
     alert("Please set both start and end nodes.");
     return;
   }
+  resetVisualization()
 
   for (let row of grid) {
     for (let node of row) {
@@ -446,7 +530,57 @@ async function dfs() {
 
   animatePath();
 }
+function resetVisualization() {
+  for (let row of grid) {
+    for (let node of row) {
+      if (!node.wall && node !== startNode && node !== endNode) {
+        node.element.className = "w-5 h-5 border border-gray-200 bg-white transition-all duration-150";
+      }
+      node.visited = false;
+      node.previous = null;
+      node.distance = Infinity;
+    }
+  }
+  document.getElementById('path-length').textContent = '';
+}
+async function animatePath() {
+  // First clear any existing path
+  for (let row of grid) {
+   for (let node of row) {
+     if (node.element.classList.contains("bg-yellow-400")) {
+       node.element.classList.remove("bg-yellow-400");
+       if (!node.wall && node !== startNode && node !== endNode) {
+         node.element.classList.add("bg-white");
+       }
+     }
+   }
+ }
 
+ let curr = endNode;
+ const path = [];
+ while (curr) {
+   path.push(curr);
+   curr = curr.previous;
+ }
+ 
+ if (path.length === 1 && path[0] === endNode && endNode.previous === null) {
+   document.getElementById('path-length').textContent = "No path found!";
+   return;
+ }
+
+ path.reverse();
+ let length = 0;
+ for (let node of path) {
+   if (node !== startNode && node !== endNode) {
+     node.element.classList.remove("bg-blue-300", "bg-purple-300", "bg-orange-300", "bg-cyan-300", "bg-pink-300");
+     node.element.classList.add("bg-yellow-400");
+     await new Promise(r => setTimeout(r, 30));
+     length++;
+   }
+ }
+
+ document.getElementById('path-length').textContent = `Path length: ${length}`;
+}
 
 
 createGrid();
