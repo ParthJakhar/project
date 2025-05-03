@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dijkstra Visualizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-[#dce7ea]">
+  <h1 class="text-3xl font-bold text-center my-4">Dijkstra's Pathfinding Visualizer</h1>
+
+  <div class="flex justify-center gap-4 mb-4 flex-wrap">
+     <div class="flex items-center gap-2">
+      <label for="algorithm" class="font-medium">Algorithm:</label>
+      <select id="algorithm" class="border rounded px-2 py-1">
+        <option value="">-- Select Algorithm --</option>
+        <option value="dijkstra">Dijkstra</option>
+        <option value="astar">A*</option>
+        <option value="greedy">Greedy Best-First</option>
+        <option value="bfs">Breadth-First Search</option>
+        <option value="dfs">Depth-First Search</option>
+      </select>
+      
+      <button id="start-btn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Visualize</button>
+    </div>    
+    <button id="reset-btn" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Reset Grid</button>
+    <button id="maze-btn" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Generate Maze</button>
+    <button id="clear-walls-btn" class="bg-gray-600 text-white px-4 py-2 m-1 rounded">Clear Walls</button>
+
+    <div class="flex items-center gap-2">
+      <label for="speed" class="font-medium">Speed:</label>
+      <select id="speed" class="border rounded px-2 py-1">
+        <option value="fast">Fast</option>
+        <option value="medium" selected>Medium</option>
+        <option value="slow">Slow</option>
+        
+      </select>
+    </div>
+    <div id="path-length" class="mt-2 font-medium text-gray-700">Path length: 0</div>
+
+    <div class="flex items-center gap-2">
+      <input type="checkbox" id="diagonal">
+      <label for="diagonal" class="font-medium">Allow Diagonal Movement</label>
+    </div>
+  </div>
+
+  <div id="grid" class="grid mx-auto gap-[1px]" style="grid-template-columns: repeat(40, 20px); width: max-content;"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
