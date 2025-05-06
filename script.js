@@ -10,6 +10,7 @@ let movingEnd = false;
 const gridElement = document.getElementById('grid');
 const grid = [];
 
+
 function createGrid() {
   for (let r = 0; r < rows; r++) {
     const row = [];
@@ -31,6 +32,7 @@ function createGrid() {
     grid.push(row);
   }
 }
+
 // Algorithm information including time complexity
 const algorithmInfo = {
   dijkstra: {
@@ -66,16 +68,16 @@ const algorithmInfo = {
 };
 
 // Modified algorithm functions to return performance data
-async function runAlgorithm(algorithm) {
+async function runAlgorithm(algorithm,grid) {
   resetVisualization();
   const startTime = performance.now();
   
   switch(algorithm) {
-    case "dijkstra": await dijkstra(); break;
-    case "astar": await astar(); break;
-    case "greedy": await greedyBestFirst(); break;
-    case "bfs": await bfs(); break;
-    case "dfs": await dfs(); break;
+    case "dijkstra": await dijkstra(grid); break;
+    case "astar": await astar(grid); break;
+    case "greedy": await greedyBestFirst(grid); break;
+    case "bfs": await bfs(grid); break;
+    case "dfs": await dfs(grid); break;
   }
   
   const endTime = performance.now();
@@ -105,6 +107,18 @@ function getPathLength() {
   }
   return length;
 }
+function cloneGrid(originalGrid) {
+  return originalGrid.map(row => row.map(cell => ({
+    row: cell.row,
+    col: cell.col,
+    distance: Infinity,
+    visited: false,
+    previous: null,
+    wall: cell.wall,
+    element: null // will be set in visual grid
+  })));
+}
+
 
 // Main comparison function
 async function compareAlgorithms() {
@@ -127,7 +141,7 @@ async function compareAlgorithms() {
       <div class="algorithm-title">${info.name}</div>
       <div class="complexity-info">
         <div>Time: ${info.time}</div>
-        <div>Space: ${info.space}</div>
+        <div>Space: ${info.space}</div>a
         <div>${info.description}</div>
       </div>
       <div class="time-info">
@@ -580,6 +594,349 @@ async function animatePath() {
  }
 
  document.getElementById('path-length').textContent = `Path length: ${length}`;
+}
+// Add this to your existing code
+
+// Modified comparison function with parallel execution
+async function compareAlgorithms() {
+  const algorithms = ["dijkstra", "astar", "greedy", "bfs", "dfs"];
+  const resultsContainer = document.getElementById("comparison-results");
+  resultsContainer.innerHTML = "<div class='text-center py-4'>Running comparisons...</div>";
+  
+  // Save original grid state
+  const originalGrid = JSON.stringify(grid.map(row => 
+    row.map(({wall, row, col}) => ({wall, row, col}))
+  ));
+  
+  // Create a clean grid copy for each algorithm
+  const gridCopies = {};
+  for (const alg of algorithms) {
+    gridCopies[alg] = cloneGrid(grid);
+  }
+  
+  // Run all algorithms in parallel
+  const startTime = performance.now();
+  const promises = algorithms.map(alg => 
+    runAlgorithmOnGrid(alg, gridCopies[alg])
+      .then(result => ({alg, result}))
+      .catch(error => ({alg, error}))
+  );
+  
+  const comparisons = await Promise.all(promises);
+  const totalTime = performance.now() - startTime;
+  
+  // Restore original grid
+  resetGrid();
+  const gridData = JSON.parse(originalGrid);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      grid[r][c].wall = gridData[r][c].wall;
+      if (grid[r][c].wall) {
+        grid[r][c].element.classList.add('bg-black');
+      }
+    }
+  }
+  
+  // Display results
+  displayComparisonResults(comparisons, totalTime);
+}
+
+function cloneGrid(originalGrid) {
+  return originalGrid.map(row => row.map(cell => ({
+    ...cell,
+    distance: Infinity,
+    visited: false,
+    previous: null,
+    element: null // We won't need the actual DOM element for comparisons
+  })));
+}
+
+async function runAlgorithmOnGrid(algorithm, gridCopy) {
+  // Find start and end nodes in the copy
+  const startNodeCopy = gridCopy.flat().find(node => 
+    node.row === startNode.row && node.col === startNode.col
+  );
+  const endNodeCopy = gridCopy.flat().find(node => 
+    node.row === endNode.row && node.col === endNode.col
+  );
+  
+  const startTime = performance.now();
+  
+  // Run the algorithm (without visualization)
+  switch(algorithm) {
+    case "dijkstra": await dijkstraForComparison(gridCopy, startNodeCopy, endNodeCopy); break;
+    case "astar": await astarForComparison(gridCopy, startNodeCopy, endNodeCopy); break;
+    case "greedy": await greedyForComparison(gridCopy, startNodeCopy, endNodeCopy); break;
+    case "bfs": await bfsForComparison(gridCopy, startNodeCopy, endNodeCopy); break;
+    case "dfs": await dfsForComparison(gridCopy, startNodeCopy, endNodeCopy); break;
+  }
+  
+  const endTime = performance.now();
+  
+  return {
+    time: (endTime - startTime).toFixed(2),
+    visited: countVisitedNodesInCopy(gridCopy),
+    pathLength: getPathLengthInCopy(gridCopy, endNodeCopy),
+    success: endNodeCopy.previous !== null
+  };
+}
+
+// Algorithm implementations without visualization for comparison
+async function dijkstraForComparison(grid, startNode, endNode) {
+  const unvisited = [];
+  for (let row of grid) {
+    for (let node of row) {
+      node.distance = Infinity;
+      node.visited = false;
+      node.previous = null;
+      if (!node.wall) unvisited.push(node);
+    }
+  }
+
+  startNode.distance = 0;
+
+  while (unvisited.length) {
+    unvisited.sort((a, b) => a.distance - b.distance);
+    const current = unvisited.shift();
+    if (current.wall) continue;
+    if (current.distance === Infinity) break;
+
+    current.visited = true;
+    if (current === endNode) break;
+
+    for (let neighbor of getNeighborsInCopy(grid, current)) {
+      if (!neighbor.visited && !neighbor.wall) {
+        const alt = current.distance + 1;
+        if (alt < neighbor.distance) {
+          neighbor.distance = alt;
+          neighbor.previous = current;
+        }
+      }
+    }
+  }
+}
+
+async function astarForComparison(grid, startNode, endNode) {
+  for (let row of grid) {
+    for (let node of row) {
+      node.distance = Infinity;
+      node.visited = false;
+      node.previous = null;
+    }
+  }
+
+  startNode.distance = 0;
+  const openSet = [startNode];
+
+  while (openSet.length > 0) {
+    openSet.sort((a, b) => (a.distance + heuristic(a, endNode)) - (b.distance + heuristic(b, endNode)));
+    const current = openSet.shift();
+
+    if (current.wall) continue;
+    if (current === endNode) break;
+
+    current.visited = true;
+
+    for (let neighbor of getNeighborsInCopy(grid, current)) {
+      if (!neighbor.visited && !neighbor.wall) {
+        const tentativeG = current.distance + 1;
+        if (tentativeG < neighbor.distance) {
+          neighbor.distance = tentativeG;
+          neighbor.previous = current;
+          if (!openSet.includes(neighbor)) {
+            openSet.push(neighbor);
+          }
+        }
+      }
+    }
+  }
+}
+
+async function greedyForComparison(grid, startNode, endNode) {
+  for (let row of grid) {
+    for (let node of row) {
+      node.visited = false;
+      node.previous = null;
+    }
+  }
+
+  const openSet = [startNode];
+
+  while (openSet.length > 0) {
+    openSet.sort((a, b) => heuristic(a, endNode) - heuristic(b, endNode));
+    const current = openSet.shift();
+
+    if (current === endNode) break;
+    current.visited = true;
+
+    for (const neighbor of getNeighborsInCopy(grid, current)) {
+      if (!neighbor.visited && !neighbor.wall && !openSet.includes(neighbor)) {
+        neighbor.previous = current;
+        openSet.push(neighbor);
+      }
+    }
+  }
+}
+
+async function bfsForComparison(grid, startNode, endNode) {
+  for (let row of grid) {
+    for (let node of row) {
+      node.visited = false;
+      node.previous = null;
+    }
+  }
+
+  const queue = [startNode];
+  startNode.visited = true;
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+
+    if (current === endNode) break;
+
+    for (let neighbor of getNeighborsInCopy(grid, current)) {
+      if (!neighbor.visited && !neighbor.wall) {
+        neighbor.visited = true;
+        neighbor.previous = current;
+        queue.push(neighbor);
+      }
+    }
+  }
+}
+
+async function dfsForComparison(grid, startNode, endNode) {
+  for (let row of grid) {
+    for (let node of row) {
+      node.visited = false;
+      node.previous = null;
+    }
+  }
+
+  const stack = [startNode];
+  startNode.visited = true;
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+
+    if (current === endNode) break;
+
+    for (let neighbor of getNeighborsInCopy(grid, current)) {
+      if (!neighbor.visited && !neighbor.wall) {
+        neighbor.visited = true;
+        neighbor.previous = current;
+        stack.push(neighbor);
+      }
+    }
+  }
+}
+
+function getNeighborsInCopy(grid, node) {
+  let dirs = [[0,1],[1,0],[0,-1],[-1,0]];
+  if (document.getElementById('diagonal').checked) {
+    dirs.push([1,1], [1,-1], [-1,1], [-1,-1]);
+  }
+  const neighbors = [];
+  for (let [dr, dc] of dirs) {
+    const nr = node.row + dr;
+    const nc = node.col + dc;
+    if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+      neighbors.push(grid[nr][nc]);
+    }
+  }
+  return neighbors;
+}
+
+function countVisitedNodesInCopy(gridCopy) {
+  let count = 0;
+  for (let row of gridCopy) {
+    for (let node of row) {
+      if (node.visited) count++;
+    }
+  }
+  return count;
+}
+
+function getPathLengthInCopy(gridCopy, endNodeCopy) {
+  let curr = endNodeCopy;
+  let length = 0;
+  while (curr && curr.previous) {
+    length++;
+    curr = curr.previous;
+  }
+  return length-1;
+}
+
+function displayComparisonResults(comparisons, totalTime) {
+  const resultsContainer = document.getElementById("comparison-results");
+  resultsContainer.innerHTML = "";
+  
+  // Sort results by time (fastest first)
+  comparisons.sort((a, b) => a.result.time - b.result.time);
+  
+  // Create a table for results
+  const table = document.createElement("table");
+  table.className = "w-full border-collapse";
+  
+  // Table header
+  const thead = document.createElement("thead");
+  thead.innerHTML = `
+    <tr class="bg-gray-100">
+      <th class="p-3 text-left">Algorithm</th>
+      <th class="p-3 text-left">Time (ms)</th>
+      <th class="p-3 text-left">Visited Nodes</th>
+      <th class="p-3 text-left">Path Length</th>
+      <th class="p-3 text-left">Status</th>
+    </tr>
+  `;
+  table.appendChild(thead);
+  
+  // Table body
+  const tbody = document.createElement("tbody");
+  comparisons.forEach(({alg, result}) => {
+    const info = algorithmInfo[alg];
+    const row = document.createElement("tr");
+    row.className = "border-b border-gray-200 hover:bg-gray-50";
+    
+    row.innerHTML = `
+      <td class="p-3">
+        <div class="font-medium">${info.name}</div>
+        <div class="text-xs text-gray-500">${info.time} time</div>
+      </td>
+      <td class="p-3">${result.time}</td>
+      <td class="p-3">${result.visited}</td>
+      <td class="p-3">${result.success ? result.pathLength : "N/A"}</td>
+      <td class="p-3">
+        ${result.success ? 
+          '<span class="px-2 py-1 bg-green-100 text-green-800 rounded">Success</span>' : 
+          '<span class="px-2 py-1 bg-red-100 text-red-800 rounded">Failed</span>'}
+      </td>
+    `;
+    
+    // Highlight the fastest successful algorithm
+    if (result.success && result.time === comparisons[0].result.time) {
+      row.classList.add("bg-yellow-50");
+      const fastestBadge = document.createElement("div");
+      fastestBadge.className = "text-xs font-bold text-yellow-600";
+      fastestBadge.textContent = "Fastest";
+      row.querySelector("td").appendChild(fastestBadge);
+    }
+    
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);
+  
+  // Summary
+  const summary = document.createElement("div");
+  summary.className = "mt-4 p-3 bg-blue-50 rounded";
+  summary.innerHTML = `
+    <div class="font-medium">Comparison Summary</div>
+    <div>Total comparison time: ${totalTime.toFixed(2)} ms</div>
+    <div>Grid size: ${rows} × ${cols} (${rows * cols} nodes)</div>
+    <div>Walls: ${grid.flat().filter(node => node.wall).length} nodes</div>
+  `;
+  
+  resultsContainer.appendChild(table);
+  resultsContainer.appendChild(summary);
 }
 
 
